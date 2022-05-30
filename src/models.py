@@ -8,7 +8,7 @@ from torch_geometric.utils import dropout_adj
 class IGMC(torch.nn.Module):
     # The GNN model of Inductive Graph-based Matrix Completion.
     # Use RGCN convolution + center-nodes readout.
-    def __init__(self, dataset, latent_dim=32, num_layers=4, num_bases=2, adj_dropout=0.2,
+    def __init__(self, dataset, latent_dim=[32, 32, 32, 32], num_layers=4, num_bases=2, adj_dropout=0.2,
                  force_undirected=False, use_features=False, n_side_features=0):
         super().__init__()
 
@@ -16,16 +16,16 @@ class IGMC(torch.nn.Module):
         self.force_undirected = force_undirected
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(RGCNConv(dataset.num_features, latent_dim, dataset.num_relations, num_bases))
-
+        self.convs.append(RGCNConv(dataset.num_features, latent_dim[0], dataset.num_relations, num_bases))
+        
         for i in range(0, num_layers - 1):
-            self.convs.append(RGCNConv(latent_dim, latent_dim, dataset.num_relations, num_bases))
+            self.convs.append(RGCNConv(latent_dim[i], latent_dim[i+1], dataset.num_relations, num_bases))
 
-        self.lin1 = Linear(2 * (latent_dim * num_layers), 128)
+        self.lin1 = Linear(2*sum(latent_dim), 128)
         self.use_features = use_features
 
         if use_features:
-            self.lin1 = Linear(2 * (latent_dim * num_layers) + n_side_features, 128)
+            self.lin1 = Linear(2*sum(latent_dim)+n_side_features, 128)
 
         self.lin2 = Linear(128, 1)
 

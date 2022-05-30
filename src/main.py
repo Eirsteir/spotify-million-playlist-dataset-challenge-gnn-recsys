@@ -64,8 +64,7 @@ def run_pipeline(args):
         adj_train,
         train_indices,
         train_labels,
-        args.hop,
-        args.sample_ratio,
+        args.num_hops,
         args.max_nodes_per_hop,
         u_features,
         v_features,
@@ -73,14 +72,13 @@ def run_pipeline(args):
         max_num=args.max_train_num
     )
 
-    if not args.testing:
+    if not args.evaluate:
         val_graphs = IGMCDataset(
             root,
             adj_train,
             val_indices,
             val_labels,
-            args.hop,
-            args.sample_ratio,
+            args.num_hops,
             args.max_nodes_per_hop,
             u_features,
             v_features,
@@ -89,7 +87,7 @@ def run_pipeline(args):
         )
 
     # Determine testing data (on which data to evaluate the trained model
-    if not args.testing:
+    if not args.evaluate:
         test_graphs = val_graphs
 
     print(f'Using #train graphs: {len(train_graphs)}, #test graphs: {len(test_graphs)}')
@@ -106,18 +104,6 @@ def run_pipeline(args):
         use_features=args.use_features
     )
 
-    model = IGMC(
-        train_graphs,
-        latent_dim=[32, 32, 32, 32],
-        num_bases=4,
-        adj_dropout=args.adj_dropout,
-        force_undirected=args.force_undirected,
-        use_features=args.use_features,
-        n_side_features=n_features
-    )
-    total_params = sum(p.numel() for param in model.parameters() for p in param)
-    print(f'Total number of parameters: {total_params}')
-
     model = LightningIGMC(
         lr=args.lr,
         lr_decay_step_size=args.lr_decay_step_size,
@@ -125,7 +111,7 @@ def run_pipeline(args):
         ARR=args.ARR,
         # Model arguments
         dataset=train_graphs,
-        latent_dim=32,
+        latent_dim=[32, 32, 32, 32],
         num_layers=args.num_layers,
         num_bases=4,
         adj_dropout=args.adj_dropout,
@@ -182,19 +168,39 @@ def run_pipeline(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='IGMC')
 
-    # Experiment arguments
+    # General settings
     parser.add_argument("--name", type=str, default="test")
+    parser.add_argument('--evaluate', action='store_true', default=False,
+                    help='if set, use testing mode which splits all ratings into train/test;\
+                    otherwise, use validation model which splits all ratings into \
+                    train/val/test and evaluate on val only')
+    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--datasplit_from_file", action="store_true", 
+                        help="Whether to use data split previosly stored")
+    parser.add_argument('--max-train-num', type=int, default=None, 
+                    help='set maximum number of train data to use')
+    parser.add_argument('--max-val-num', type=int, default=None, 
+                        help='set maximum number of val data to use')
+    parser.add_argument('--max-test-num', type=int, default=None, 
+                        help='set maximum number of test data to use')
 
     # Model arguments
+    parser.add_argument('--num_layers', type=int, default=4)
+
+    # Subgraph extraction arguments
+    parser.add_argument("--num_hops", type=int, default=1, help='enclosing subgraph hop number')
+    parser.add_argument('--use_features', action='store_true',
+                        help="whether to use raw node features as additional GNN input")
+    parser.add_argument('--max-nodes-per-hop', default=10000, 
+                    help='if > 0, upper bound the # nodes per hop by another subsampling')
+
+    # Edge dropout settings
     parser.add_argument('--adj-dropout', type=float, default=0.2,
                         help='if not 0, random drops edges from adjacency matrix with this prob')
     parser.add_argument('--force-undirected', action='store_true', default=False,
                         help='in edge dropout, force (x, y) and (y, x) to be dropped together')
-    parser.add_argument('--use_features', action='store_true',
-                        help="whether to use raw node features as additional GNN input")
-    parser.add_argument('--num_layers', type=int, default=4)
 
-    # Training arguments
+    # Optimization settings
     parser.add_argument('--batch_size', type=int, default=50)
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 1e-3)')
@@ -206,11 +212,10 @@ if __name__ == '__main__':
                         help="Adjacent rating regularization lambda value")
     parser.add_argument('--epochs', type=int, default=50)
 
+    # Other
     parser.add_argument('--devices', type=int, default=1)
     parser.add_argument('--num_workers', type=int, default=6)
     parser.add_argument('--model', type=str, default='igmc', choices=['igmc'])
-    parser.add_argument("--datasplit_from_file", action="store_true", 
-                        help="Whether to use data split previosly stored")
 
     args = parser.parse_args()
     print(args)

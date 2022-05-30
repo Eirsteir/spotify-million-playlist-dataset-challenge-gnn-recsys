@@ -58,14 +58,13 @@ class SparseColIndexer:
 
 
 class IGMCDataset(Dataset):
-    def __init__(self, root, A, links, labels, h, sample_ratio, max_nodes_per_hop,
+    def __init__(self, root, A, links, labels, h, max_nodes_per_hop,
                      u_features, v_features, class_values, max_num=None, parallel=True):
         self.Arow = SparseRowIndexer(A)
         self.Acol = SparseColIndexer(A.tocsc())
         self.links = links
         self.labels = labels
         self.h = h
-        self.sample_ratio = sample_ratio
         self.max_nodes_per_hop = max_nodes_per_hop
         self.u_features = u_features
         self.v_features = v_features
@@ -91,7 +90,7 @@ class IGMCDataset(Dataset):
 
     def get(self, idx):
         i, j = self.links[0][idx], self.links[1][idx]
-        g_label = self.labels[idx]
+        g_label = self.labels[idx] - 1 # TODO: formuler, må stemme med index til class_values = np.array([1.0]) (index 0=y)
         graph_data = subgraph_extraction_labeling(
             (i, j), self.Arow, self.Acol, self.h, self.max_nodes_per_hop,
             self.u_features, self.v_features, self.class_values, g_label

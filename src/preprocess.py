@@ -57,21 +57,11 @@ def train_val_split_data(
     train_labels = all_labels[:num_train]
     val_labels = all_labels[num_train:]
     class_values = np.sort(np.unique(ratings))
-    print("all_labels ", all_labels.shape, all_labels)
-    print("ratings ", ratings.shape, ratings)
-    print("num_train", num_train)
-    print("train_labels", train_labels.shape, train_labels)
-
     
     data = train_labels.astype(np.float32)
-    print("data: ", data.shape, data)
-    print("u_train_idx", u_train_idx.shape, u_train_idx)
-    print("v_train_idx", v_train_idx.shape, v_train_idx)
-    print("num_playlists: ", num_users)
-    print("num_songs: ", num_items)
 
-    rating_mx_train = sp.csr_matrix((data, [u_train_idx, v_train_idx]),
+    R_train = sp.csr_matrix((data, [u_train_idx, v_train_idx]),
                                     shape=[num_users, num_items], dtype=np.float32)
 
-    return u_features, v_features, rating_mx_train, train_labels, u_train_idx, v_train_idx, \
+    return u_features, v_features, R_train, train_labels, u_train_idx, v_train_idx, \
         val_labels, u_val_idx, v_val_idx, class_values
