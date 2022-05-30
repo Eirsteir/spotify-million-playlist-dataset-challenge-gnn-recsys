@@ -53,12 +53,13 @@ def load_data(seed=1234, verbose=True):
     v_nodes_data = data_array[:, 1].astype(np.int32)
     r_edges = np.ones(len(data)).astype(np.float64)
 
-    playlist_df = pd.read_parquet(files[1])
+    u_nodes_data, u_dict, num_playlists = map_data_to_idx(u_nodes_data)
+    v_nodes_data, v_dict, num_tracks = map_data_to_idx(v_nodes_data)
 
-    track_df = pd.read_parquet(files[2])
+    # TODO: features
+    #playlist_df = pd.read_parquet(files[1])
 
-    num_playlists = len(playlist_df)
-    num_tracks = len(track_df)
+    #track_df = pd.read_parquet(files[2])
 
     if verbose:
         print('Number of playlists = %d' % num_playlists)
@@ -70,7 +71,22 @@ def load_data(seed=1234, verbose=True):
 
 
 
+def map_data_to_idx(data):
+    """
+    Map data to proper indices in case they are not in a continues [0, N) range
+    Parameters
+    ----------
+    data : np.int32 arrays
+    Returns
+    -------
+    mapped_data : np.int32 arrays
+    n : length of mapped_data
+    """
+    uniq = list(set(data))
 
+    id_dict = {old: new for new, old in enumerate(sorted(uniq))}
+    data = np.array([id_dict[x] for x in data])
+    n = len(uniq)
 
-
+    return data, id_dict, n
 

@@ -33,7 +33,7 @@ def train_val_split_data(
             print('Number of users = %d' % num_users)
             print('Number of items = %d' % num_items)
             print('Number of links = %d' % ratings.shape[0])
-            print('Fraction of positive links = %.4f' % (float(ratings.shape[0]) / (num_users * num_items),))
+            print('Fraction of positive links = %.10f' % (float(ratings.shape[0]) / (num_users * num_items),))
 
     else:
         num_users, num_items, u_nodes, v_nodes, ratings, u_features, v_features = load_data(seed=seed, verbose=verbose)
@@ -42,24 +42,33 @@ def train_val_split_data(
             pkl.dump([num_users, num_items, u_nodes, v_nodes, ratings, u_features, v_features], f)
 
     print("Using random dataset split ...")
-    num_val = int(np.ceil(ratings.shape[0] * 0.9 * 0.05))
+    num_val = int(np.ceil(ratings.shape[0] * 0.1))
     num_train = ratings.shape[0] - num_val
 
     pairs_nonzero = np.vstack([u_nodes, v_nodes]).transpose()
 
-    train_pairs_idx = pairs_nonzero[0:int(num_train*ratio)]
+    train_pairs_idx = pairs_nonzero[:num_train]
     val_pairs_idx = pairs_nonzero[num_train:]
 
     u_val_idx, v_val_idx = val_pairs_idx.transpose()
     u_train_idx, v_train_idx = train_pairs_idx.transpose()
 
-    all_labels = np.array([ratings], dtype=np.int32)
-    train_labels = all_labels[0:int(num_train*ratio)]
+    all_labels = np.array(ratings, dtype=np.int32)    
+    train_labels = all_labels[:num_train]
     val_labels = all_labels[num_train:]
-
     class_values = np.sort(np.unique(ratings))
+    print("all_labels ", all_labels.shape, all_labels)
+    print("ratings ", ratings.shape, ratings)
+    print("num_train", num_train)
+    print("train_labels", train_labels.shape, train_labels)
 
+    
     data = train_labels.astype(np.float32)
+    print("data: ", data.shape, data)
+    print("u_train_idx", u_train_idx.shape, u_train_idx)
+    print("v_train_idx", v_train_idx.shape, v_train_idx)
+    print("num_playlists: ", num_users)
+    print("num_songs: ", num_items)
 
     rating_mx_train = sp.csr_matrix((data, [u_train_idx, v_train_idx]),
                                     shape=[num_users, num_items], dtype=np.float32)

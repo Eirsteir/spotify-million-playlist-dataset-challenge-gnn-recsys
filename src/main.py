@@ -21,19 +21,20 @@ def run_pipeline(args):
     seed_everything(42)
     # load data
     print("|Loading data...")
+    
     if args.use_features:
         datasplit_path = (
-            'raw_data/mpd/withfeatures.pickle'
+            'data/raw/mpd-withfeatures.pickle'
         )
     else:
         datasplit_path = (
-            'raw_data/mpd/split.pickle'
+            'data/raw/mpd-split.pickle'
         )
 
     (
         u_features, v_features, adj_train, train_labels, train_u_indices, train_v_indices,
         val_labels, val_u_indices, val_v_indices, class_values
-    ) = train_val_split_data(datasplit_path=datasplit_path, datasplit_from_file=None)
+    ) = train_val_split_data(datasplit_path=datasplit_path, datasplit_from_file=args.datasplit_from_file)
 
     if args.use_features:
         u_features, v_features = u_features.toarray(), v_features.toarray()
@@ -206,10 +207,12 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=50)
 
     parser.add_argument('--devices', type=int, default=1)
-    parser.add_argument('--num_workers', type=int, default=4)
+    parser.add_argument('--num_workers', type=int, default=6)
     parser.add_argument('--model', type=str, default='igmc', choices=['igmc'])
+    parser.add_argument("--datasplit_from_file", action="store_true", 
+                        help="Whether to use data split previosly stored")
 
-    args = parser.parse_args("")
+    args = parser.parse_args()
     print(args)
 
     run_pipeline(args)
