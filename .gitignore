@@ -128,6 +128,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Azure 
+*.aml*
+*.amltmp
+
 # Data
 data/
 data/raw/slices/mpd.slice.0-999.json

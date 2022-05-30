@@ -1,0 +1,19 @@
+name: env
+channels:
+    - defaults
+    - pytorch
+    - pyg
+    - conda-forge
+dependencies:
+    - python=3.9.7
+    - pytorch==1.11.0
+    - pyg
+    - pip
+    - pip:
+        - numpy
+        - scipy
+        - pandas
+        - pyarrow
+        - torchmetrics
+        - pytorch-lightning
+        - protobuf~=3.20

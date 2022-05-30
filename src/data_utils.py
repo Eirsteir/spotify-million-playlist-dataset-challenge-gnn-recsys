@@ -36,13 +36,11 @@ def load_data(seed=1234, verbose=True):
     seed: int,
         For datashuffling seed with pythons own random.shuffle, as in CF-NADE.
     """
-
+    
     u_features = None
     v_features = None
 
-    data = pd.read_parquet(
-        files[0], header=None,
-        names=['u_nodes', 'v_nodes'], dtype=np.int32)
+    data = pd.read_parquet(files[0])
 
     # shuffle here like cf-nade paper with python's own random class
     # make sure to convert to list, otherwise random.shuffle acts weird on it without a warning
@@ -55,13 +53,9 @@ def load_data(seed=1234, verbose=True):
     v_nodes_data = data_array[:, 1].astype(np.int32)
     r_edges = np.ones(len(data)).astype(np.float64)
 
-    playlist_df = pd.read_parquet(
-        files[1], header=None,
-        names=['pid'], dtype=np.int32)
+    playlist_df = pd.read_parquet(files[1])
 
-    track_df = pd.read_parquet(
-        files[2], header=None,
-        names=['track_id', "track_uri"], dtype=np.int32)
+    track_df = pd.read_parquet(files[2])
 
     num_playlists = len(playlist_df)
     num_tracks = len(track_df)

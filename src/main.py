@@ -20,7 +20,16 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 def run_pipeline(args):
     seed_everything(42)
     # load data
-    datasplit_path = None
+    print("|Loading data...")
+    if args.use_features:
+        datasplit_path = (
+            'raw_data/mpd/withfeatures.pickle'
+        )
+    else:
+        datasplit_path = (
+            'raw_data/mpd/split.pickle'
+        )
+
     (
         u_features, v_features, adj_train, train_labels, train_u_indices, train_v_indices,
         val_labels, val_u_indices, val_v_indices, class_values
