@@ -1,0 +1,7 @@
+# These are required packages for the install in requirements.txt
+numpy
+scipy
+pandas
+pyarrow
+torchmetrics
+pytorch-lightning

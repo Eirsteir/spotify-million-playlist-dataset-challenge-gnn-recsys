@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Data
+data/
+data/raw/slices/mpd.slice.0-999.json
