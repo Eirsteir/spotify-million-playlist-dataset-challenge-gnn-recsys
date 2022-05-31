@@ -31,9 +31,9 @@ class LightningIGMC(LightningModule):
 
         self.train_rmse = MeanSquaredError(squared=False)
         self.val_rmse = MeanSquaredError(squared=False)
-        self.val_ndcg = MF.retrieval_normalized_dcg
+
         self.test_rmse = MeanSquaredError(squared=False)
-        self.test_ndcg = MF.retrieval_normalized_dcg
+
 
         self.criterion = F.mse_loss
 
@@ -65,11 +65,8 @@ class LightningIGMC(LightningModule):
         loss = self.criterion(out, batch.y.view(-1), reduction="sum")
 
         self.val_rmse(out, batch.y.view(-1))
-        self.val_ndcg(out, batch.y.view(-1))
 
         self.log('val_rmse', self.val_rmse, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True)
-        self.log('val_ndcg', self.val_ndcg, on_step=False, on_epoch=True,
                  prog_bar=True, sync_dist=True)
 
     def test_step(self, batch, batch_idx: int):
