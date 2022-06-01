@@ -11,6 +11,21 @@ import scipy.sparse as sp
 from data_utils import load_data
 from contants import DATA_DIR_TRAIN
 
+def load_challenge_data(datasplit_path=DATA_DIR_TEST):
+    num_users, num_items, u_nodes, v_nodes, ratings, u_features, v_features = load_processed_data(datasplit_path)
+
+    u_idx, v_idx = np.vstack([u_nodes, v_nodes])
+
+    labels = np.array(ratings, dtype=np.int32)    
+    class_values = np.sort(np.unique(ratings))
+    
+    data = labels.astype(np.float32)
+
+    R_train = sp.csr_matrix((data, [u_idx, v_idx]),
+                                    shape=[num_users, num_items], dtype=np.float32)
+
+    return u_features, v_features, R_train, labels, u_idx, v_idx, class_values
+
 
 def load_processed_data(
         path=DATA_DIR_TRAIN,

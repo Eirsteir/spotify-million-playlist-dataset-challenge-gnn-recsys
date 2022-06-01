@@ -10,6 +10,34 @@ from preprocess import train_val_split, load_processed_data
 from dataset import IGMCDataset
 
 
+def create_dataset(
+        adj,
+        labels,
+        u_indices,
+        v_indices,
+        debug=False,
+        **ds_kwargs
+    ):
+    if debug:  # use a small number of data to debug
+        num_data = 1000
+        u_indices, v_indices = u_indices[:num_data], v_indices[:num_data]
+        
+    indices = (u_indices, v_indices)
+
+    # print(f"|Link split - train: {len(train_u_indices)}, val: {len(val_u_indices)}")
+
+    # Dynamically extract enclosing subgraphs
+    root = osp.join(osp.dirname(osp.realpath("__file__")), '..', 'data')
+
+    return IGMCDataset(
+        root,
+        adj,
+        indices,
+        labels,
+        **ds_kwargs
+    )
+
+
 class SpotifyDataModule(LightningDataModule):
     def __init__(
         self,
@@ -45,72 +73,84 @@ class SpotifyDataModule(LightningDataModule):
         
 
     def setup(self, stage: Optional[str] = None):
-        # Split, transform, etc
-        if self.use_features:
-            datasplit_path = 'data/train/mpd-withfeatures.pickle'
-        else:
-            datasplit_path = 'data/train/mpd-split.pickle'
+        if stage == "fit" or stage is None:
 
-        data = load_processed_data(datasplit_path=datasplit_path)
+            # Split, transform, etc
+            if self.use_features:
+                datasplit_path = 'data/train/mpd-withfeatures.pickle'
+            else:
+                datasplit_path = 'data/train/mpd-split.pickle'
+
+            data = load_processed_data(datasplit_path=datasplit_path)
+            
+            (
+                u_features, v_features, adj_train, 
+                train_labels, train_u_indices, train_v_indices,
+                val_labels, val_u_indices, val_v_indices, 
+                class_values
+            ) = train_val_split(*data)
+
+            if self.use_features:
+                u_features, v_features = u_features.toarray(), v_features.toarray()
+                self.n_features = u_features.shape[1] + v_features.shape[1]
+                print(f'Number of playlist features {u_features.shape[1]}, '
+                    f'track features {v_features.shape[1]}, '
+                    f'total features {n_features}')
+            else:
+                u_features, v_features = None, None
+                self.n_features = 0
+
+            self.train_dataset = create_dataset(
+                adj=adj_train,
+                labels=train_labels,
+                u_indices=train_u_indices,
+                v_indices=train_v_indices,
+                debug=self.debug,
+                num_hops=self.num_hops,
+                max_nodes_per_hop=self.max_nodes_per_hop,
+                u_features=u_features,
+                v_features=v_features,
+                class_values=class_values
+            )
+
+            self.val_dataset = create_dataset(
+                adj=adj_train,
+                labels=val_labels,
+                u_indices=val_u_indices,
+                v_indices=val_v_indices,
+                debug=self.debug,
+                num_hops=self.num_hops,
+                max_nodes_per_hop=self.max_nodes_per_hop,
+                u_features=u_features,
+                v_features=v_features,
+                class_values=class_values
+            )
+
+            if self.use_test_data:
+                self.test_dataset = self.val_dataset
+
+        if stage == "test" or stage is None:
+            # TODO: load challenge data
+            (
+                u_features, v_features, adj_test, 
+                test_labels, test_u_indices, test_v_indices,
+                class_values
+            ) = load_challenge_data()
         
-        (
-            u_features, v_features, adj_train, 
-            train_labels, train_u_indices, train_v_indices,
-            val_labels, val_u_indices, val_v_indices, 
-            class_values
-        ) = train_val_split(*data)
+            self.train_dataset = create_dataset(
+                adj=adj_test,
+                labels=test_labels,
+                u_indices=test_u_indices,
+                v_indices=test_v_indices,
+                debug=self.debug,
+                num_hops=self.num_hops,
+                max_nodes_per_hop=self.max_nodes_per_hop,
+                u_features=u_features,
+                v_features=v_features,
+                class_values=class_values
+            )
 
-        if self.use_features:
-            u_features, v_features = u_features.toarray(), v_features.toarray()
-            self.n_features = u_features.shape[1] + v_features.shape[1]
-            print(f'Number of playlist features {u_features.shape[1]}, '
-                f'track features {v_features.shape[1]}, '
-                f'total features {n_features}')
-        else:
-            u_features, v_features = None, None
-            self.n_features = 0
-
-        if self.debug:  # use a small number of data to debug
-            num_data = 1000
-            train_u_indices, train_v_indices = train_u_indices[:num_data], train_v_indices[:num_data]
-            val_u_indices, val_v_indices = val_u_indices[:num_data], val_v_indices[:num_data]
-
-        train_indices = (train_u_indices, train_v_indices)
-        val_indices = (val_u_indices, val_v_indices)
-        print(f"#train: {len(train_u_indices)}, #val: {len(val_u_indices)}")
-
-        # Dynamically extract enclosing subgraphs
-        root = osp.join(osp.dirname(osp.realpath("__file__")), '..', 'data')
-
-        self.train_dataset = IGMCDataset(
-            root,
-            adj_train,
-            train_indices,
-            train_labels,
-            self.num_hops,
-            self.max_nodes_per_hop,
-            u_features,
-            v_features,
-            class_values
-        )
-
-        self.val_dataset = IGMCDataset(
-            root,
-            adj_train,
-            val_indices,
-            val_labels,
-            self.num_hops,
-            self.max_nodes_per_hop,
-            u_features,
-            v_features,
-            class_values
-        )
-        
-        # TODO: load challenge data
-        if self.use_test_data:
-            self.test_dataset = self.val_dataset
-
-        print(f'Using #train graphs: {len(self.train_dataset)}, #test graphs: {len(self.test_dataset)}')
+        print(f'|Using #train graphs: {len(self.train_dataset)}, #test graphs: {len(self.test_dataset)}')
         
 
     def train_dataloader(self):
