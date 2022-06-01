@@ -106,22 +106,36 @@ def download_dataset(name, target_path):
     dataset.download(target_path=target_path, overwrite=True)
 
 
-def prepare_data(args):
+def prepare_data(
+        platform="local", 
+        evaluate=False,
+        replace=False  # TODO: True
+    ):
     print("|Preparing data...")
 
-    if args.platform == "azure":
+    mpd_train_dir = RAW_DATA_DIR_TRAIN
+    mpd_test_dir = RAW_DATA_DIR_TEST
+
+    if not replace and has_already_prepared_data(DATA_DIR_TRAIN, DATA_DIR_TEST):
+        return
+
+    if platform == "azure":
         print("|Downloading datasets...")
-        download_dataset('spotify-mpd', target_path=args.mpd_train_dir)
-        download_dataset('spotify-mpd-test', target_path=args.mpd_test_dir)
+        download_dataset('spotify-mpd', target_path=mpd_train_dir)
+        download_dataset('spotify-mpd-test', target_path=mpd_test_dir)
     
-    if not args.test_only:
+    if not evaluate:
         print("|Loading training dataset...")
-        train_full_paths = fullpaths_generator(args.mpd_train_dir + "slices/")
+        train_full_paths = fullpaths_generator(mpd_train_dir + "slices/")
         process_data(train_full_paths, save_to=DATA_DIR_TRAIN)
     
     print("|Loading test dataset...")
-    test_full_paths = fullpaths_generator(args.mpd_test_dir)
+    test_full_paths = fullpaths_generator(mpd_test_dir)
     process_data(test_full_paths, save_to=DATA_DIR_TEST)
+
+
+def has_already_prepared_data(train_dir, test_dir):
+    return len(os.listdir(train_dir)) and len(os.listdir(test_dir))
 
 
 if __name__ == '__main__':
@@ -130,10 +144,10 @@ if __name__ == '__main__':
     args.add_argument("--platform", type=str, choices=["azure", "local"], default="local", help="Platform the mpd files are stored")
     args.add_argument('--mpd_train_dir', type=str, default=RAW_DATA_DIR_TRAIN, help="train mpd path")
     args.add_argument('--mpd_test_dir', type=str, default=RAW_DATA_DIR_TEST, help="test mpd path")
-    args.add_argument("--test_only", action="store_true", help="Only prepare test data.")
+    args.add_argument("--evaluate", action="store_true", help="Only prepare test data.")
 
     args = args.parse_args()
 
     print(args)
-    prepare_data(args)
+    prepare_data(**args)
 

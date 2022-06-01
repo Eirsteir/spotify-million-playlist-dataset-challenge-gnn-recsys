@@ -58,8 +58,6 @@ class LightningIGMC(LightningModule):
         
         self.log('train_rmse', self.train_rmse, on_step=False, on_epoch=True,
                  prog_bar=True, sync_dist=True)
-        self.log('train_batch', batch, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True)
 
         return loss * num_graphs(batch)  # TODO: remove?
 
@@ -73,8 +71,6 @@ class LightningIGMC(LightningModule):
         self.log('val_rmse', self.val_rmse, on_step=False, on_epoch=True,
                  prog_bar=True, sync_dist=True)
         self.log('val_ndcg', self.val_ndcg, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True)
-        self.log('val_batch', batch, on_step=False, on_epoch=True,
                  prog_bar=True, sync_dist=True)
                  
     def test_step(self, batch, batch_idx: int):

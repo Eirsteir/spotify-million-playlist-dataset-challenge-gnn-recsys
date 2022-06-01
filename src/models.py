@@ -8,8 +8,17 @@ from torch_geometric.utils import dropout_adj
 class IGMC(torch.nn.Module):
     # The GNN model of Inductive Graph-based Matrix Completion.
     # Use RGCN convolution + center-nodes readout.
-    def __init__(self, dataset, latent_dim=[32, 32, 32, 32], num_layers=4, num_bases=2, adj_dropout=0.2,
-                 force_undirected=False, use_features=False, n_side_features=0):
+    def __init__(
+            self, 
+            dataset, 
+            latent_dim=[32, 32, 32, 32], 
+            num_layers=4, 
+            num_bases=2, 
+            adj_dropout=0.2,
+            force_undirected=False, 
+            use_features=False, 
+            n_side_features=0
+        ):
         super().__init__()
 
         self.adj_dropout = adj_dropout
@@ -25,7 +34,7 @@ class IGMC(torch.nn.Module):
         self.use_features = use_features
 
         if use_features:
-            self.lin1 = Linear(2*sum(latent_dim)+n_side_features, 128)
+            self.lin1 = Linear(2*sum(latent_dim) + n_side_features, 128)
 
         self.lin2 = Linear(128, 1)
 

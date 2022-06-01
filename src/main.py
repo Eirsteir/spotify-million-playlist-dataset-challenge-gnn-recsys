@@ -1,5 +1,4 @@
 import glob
-import os
 import argparse
 import os.path as osp
 
@@ -9,100 +8,30 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from tqdm import tqdm
 
 from trainer import LightningIGMC
-from datamodule import IGMCDatamodule
+from datamodule import IGMCDatamodule, SpotifyDataModule
 from dataset import IGMCDataset
 from models import IGMC
-from preprocess import train_val_split_data
+from preprocess import train_val_split, load_processed_data
+from contants import RAW_DATA_DIR_TRAIN, RAW_DATA_DIR_TEST
 
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def run_pipeline(args):
     seed_everything(42)
-    # load data
     print("|Loading data...")
     
-    if args.use_features:
-        datasplit_path = (
-            'data/raw/mpd-withfeatures.pickle'
-        )
-    else:
-        datasplit_path = (
-            'data/raw/mpd-split.pickle'
-        )
-
-    (
-        u_features, v_features, adj_train, train_labels, train_u_indices, train_v_indices,
-        val_labels, val_u_indices, val_v_indices, class_values
-    ) = train_val_split_data(datasplit_path=datasplit_path, datasplit_from_file=args.datasplit_from_file)
-
-    if args.use_features:
-        u_features, v_features = u_features.toarray(), v_features.toarray()
-        n_features = u_features.shape[1] + v_features.shape[1]
-        print(f'Number of playlist features {u_features.shape[1]}, '
-              f'track features {v_features.shape[1]}, '
-              f'total features {n_features}')
-    else:
-        u_features, v_features = None, None
-        n_features = 0
-
-    if args.debug:  # use a small number of data to debug
-        num_data = 1000
-        train_u_indices, train_v_indices = train_u_indices[:num_data], train_v_indices[:num_data]
-        val_u_indices, val_v_indices = val_u_indices[:num_data], val_v_indices[:num_data]
-
-    train_indices = (train_u_indices, train_v_indices)
-    val_indices = (val_u_indices, val_v_indices)
-    print(f"#train: {len(train_u_indices)}, #val: {len(val_u_indices)}")
-
-    # Dynamically extract enclosing subgraphs
-    train_graphs, val_graphs, test_graphs = None, None, None
-    root = osp.join(osp.dirname(osp.realpath("__file__")), '..', 'data')
-
-    train_graphs = IGMCDataset(
-        root,
-        adj_train,
-        train_indices,
-        train_labels,
-        args.num_hops,
-        args.max_nodes_per_hop,
-        u_features,
-        v_features,
-        class_values,
-        max_num=args.max_train_num
-    )
-
-    if not args.evaluate:
-        val_graphs = IGMCDataset(
-            root,
-            adj_train,
-            val_indices,
-            val_labels,
-            args.num_hops,
-            args.max_nodes_per_hop,
-            u_features,
-            v_features,
-            class_values,
-            max_num=args.max_val_num
-        )
-
-    # Determine testing data (on which data to evaluate the trained model
-    if not args.evaluate:
-        test_graphs = val_graphs
-
-    print(f'Using #train graphs: {len(train_graphs)}, #test graphs: {len(test_graphs)}')
-
-    num_relations = len(class_values)
-
-
-    datamodule = IGMCDatamodule(
-        train_graphs,
-        val_graphs,
-        test_graphs,
+    datamodule = SpotifyDataModule(
         batch_size=args.batch_size,
         num_workers=args.num_workers,
-        use_features=args.use_features
+        use_features=args.use_features,
+        num_hops=args.num_hops, 
+        max_nodes_per_hop=args.max_nodes_per_hop,
+        platform=args.platform,
+        use_test_data=args.evaluate,
+        debug=args.debug
     )
+    datamodule.prepare_data()
+    datamodule.setup()
 
     model = LightningIGMC(
         lr=args.lr,
@@ -110,17 +39,17 @@ def run_pipeline(args):
         lr_decay_factor=args.lr_decay_factor,
         ARR=args.ARR,
         # Model arguments
-        dataset=train_graphs,
+        dataset=datamodule.train_dataset,
         latent_dim=[32, 32, 32, 32],
         num_layers=args.num_layers,
         num_bases=4,
         adj_dropout=args.adj_dropout,
         force_undirected=args.force_undirected,
         use_features=args.use_features,
-        n_side_features=n_features,
+        n_side_features=datamodule.n_features,
     )
 
-    print(f'#Params {sum([p.numel() for p in model.parameters()])}')
+    print(f'|#Params {sum([p.numel() for p in model.parameters()])}')
 
     checkpoint_callback = ModelCheckpoint(
         monitor='val_rmse',
@@ -183,6 +112,9 @@ if __name__ == '__main__':
                         help='set maximum number of val data to use')
     parser.add_argument('--max-test-num', type=int, default=None, 
                         help='set maximum number of test data to use')
+    parser.add_argument("--platform", type=str, choices=["azure", "local"], default="local", help="Platform the mpd files are stored")
+    parser.add_argument('--mpd_train_dir', type=str, default=RAW_DATA_DIR_TRAIN, help="train mpd path")
+    parser.add_argument('--mpd_test_dir', type=str, default=RAW_DATA_DIR_TEST, help="test mpd path")
 
     # Model arguments
     parser.add_argument('--num_layers', type=int, default=4)

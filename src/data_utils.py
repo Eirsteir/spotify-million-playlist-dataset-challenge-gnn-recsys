@@ -2,13 +2,10 @@ import random
 
 import numpy as np
 import pandas as pd
-from contants import DATA_PARQUET, U_NODES_PARQUET, V_NODES_PARQUET
-
-DATA_DIR = "./data/raw/"
-files = [DATA_DIR + DATA_PARQUET, DATA_DIR + U_NODES_PARQUET, DATA_DIR + V_NODES_PARQUET]
+from contants import DATA_PARQUET, U_NODES_PARQUET, V_NODES_PARQUET, DATA_DIR_TRAIN, DATA_DIR_TEST
 
 
-def load_data(seed=1234, verbose=True):
+def load_data(path=DATA_DIR_TRAIN, seed=1234):
     """ Loads dataset and creates adjacency matrix and feature matrix
 
     Parameters
@@ -40,7 +37,7 @@ def load_data(seed=1234, verbose=True):
     u_features = None
     v_features = None
 
-    data = pd.read_parquet(files[0])
+    data = pd.read_parquet(path + DATA_PARQUET)
 
     # shuffle here like cf-nade paper with python's own random class
     # make sure to convert to list, otherwise random.shuffle acts weird on it without a warning
@@ -57,15 +54,8 @@ def load_data(seed=1234, verbose=True):
     v_nodes_data, v_dict, num_tracks = map_data_to_idx(v_nodes_data)
 
     # TODO: features
-    #playlist_df = pd.read_parquet(files[1])
-
-    #track_df = pd.read_parquet(files[2])
-
-    if verbose:
-        print('Number of playlists = %d' % num_playlists)
-        print('Number of tracks = %d' % num_tracks)
-        print('Number of links = %d' % r_edges.shape[0])
-        print('Fraction of positive links = %.4f' % (float(r_edges.shape[0]) / (num_playlists * num_tracks),))
+    #playlist_df = pd.read_parquet(path + U_NODES_PARQUET)
+    #track_df = pd.read_parquet(path + V_NODES_PARQUET)
 
     return num_playlists, num_tracks, u_nodes_data, v_nodes_data, r_edges, u_features, v_features
 
