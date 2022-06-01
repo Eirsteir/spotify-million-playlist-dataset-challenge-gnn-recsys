@@ -1,8 +1,7 @@
 import torch
 import torch.nn.functional as F
-import torchmetrics.functional as MF
-from pytorch_lightning import (LightningModule)
-from torchmetrics import MeanSquaredError
+from pytorch_lightning import LightningModule
+from torchmetrics import MeanSquaredError, RetrievalRPrecision, RetrievalNormalizedDCG
 
 from models import IGMC
 
@@ -30,10 +29,12 @@ class LightningIGMC(LightningModule):
         self.model = IGMC(**model_params)
 
         self.train_rmse = MeanSquaredError(squared=False)
+        
         self.val_rmse = MeanSquaredError(squared=False)
+        self.val_ndcg = RetrievalNormalizedDCG()
 
         self.test_rmse = MeanSquaredError(squared=False)
-
+        self.test_ndcg = RetrievalNormalizedDCG()
 
         self.criterion = F.mse_loss
 
@@ -54,8 +55,10 @@ class LightningIGMC(LightningModule):
                 loss += self.ARR * reg_loss
 
         self.train_rmse(out, batch.y.view(-1))
-
-        self.log('train_rmse', self.train_rmse, on_step=True, on_epoch=True,
+        
+        self.log('train_rmse', self.train_rmse, on_step=False, on_epoch=True,
+                 prog_bar=True, sync_dist=True)
+        self.log('train_batch', batch, on_step=False, on_epoch=True,
                  prog_bar=True, sync_dist=True)
 
         return loss * num_graphs(batch)  # TODO: remove?
@@ -65,10 +68,15 @@ class LightningIGMC(LightningModule):
         loss = self.criterion(out, batch.y.view(-1), reduction="sum")
 
         self.val_rmse(out, batch.y.view(-1))
+        self.val_ndcg(out, batch.y.view(-1), indexes=batch.y.view(-1).new_zeros(batch.y.view(-1).shape).long())
 
         self.log('val_rmse', self.val_rmse, on_step=False, on_epoch=True,
                  prog_bar=True, sync_dist=True)
-
+        self.log('val_ndcg', self.val_ndcg, on_step=False, on_epoch=True,
+                 prog_bar=True, sync_dist=True)
+        self.log('val_batch', batch, on_step=False, on_epoch=True,
+                 prog_bar=True, sync_dist=True)
+                 
     def test_step(self, batch, batch_idx: int):
         out = self(batch)
         loss = self.criterion(out, batch.y.view(-1), reduction="sum")

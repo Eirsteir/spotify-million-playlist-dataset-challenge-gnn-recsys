@@ -7,15 +7,16 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from contants import RAW_DATA_DIR, DATA_PARQUET, V_NODES_PARQUET, U_NODES_PARQUET
+from contants import RAW_DATA_DIR, DATA_DIR_TRAIN, DATA_DIR_TEST, DATA_PARQUET, V_NODES_PARQUET, U_NODES_PARQUET, RAW_DATA_DIR_TEST, RAW_DATA_DIR_TRAIN
 
 
 def fullpaths_generator(path):
     filenames = os.listdir(path)
     fullpaths = []
     for filename in filenames:
-        fullpath = os.sep.join((path, filename))
-        fullpaths.append(fullpath)
+        if filename.endswith('.json'):
+            fullpath = os.sep.join((path, filename))
+            fullpaths.append(fullpath)
     return fullpaths
 
 
@@ -28,50 +29,49 @@ def get_tracks_from_playlist(playlist):
     return tracks
 
 
-def process_data(full_paths):
+def process_data(full_paths, save_to):
     playlists, track_uris, u_nodes, v_nodes = [], [], [], []
 
     for fullpath in tqdm(full_paths):
         track_uris, u_nodes, v_nodes = read_slice(fullpath, playlists, track_uris, u_nodes, v_nodes)
 
-    store_playlists(playlists)
+    store_playlists(playlists, save_to)
     del playlists
 
-    uri2id = dict(zip(track_uris, range(len(track_uris))))  # TODO: valid?
-    store_tracks(track_uris, uri2id)
+    uri2id = dict(zip(track_uris, range(len(track_uris))))  # TODO: valid ids?
+    store_tracks(track_uris, uri2id, save_to)
     del track_uris
 
-    store_edges(u_nodes, uri2id, v_nodes)
+    store_edges(u_nodes, uri2id, v_nodes, save_to)
 
 
-def store_edges(u_nodes, uri2id, v_nodes):
+def store_edges(u_nodes, uri2id, v_nodes, save_to):
     v_nodes = np.vectorize(uri2id.get)(v_nodes)
     assert len(u_nodes) == len(v_nodes)
     mapping_df = pd.DataFrame.from_dict({
         "u_nodes": u_nodes,
         "v_nodes": v_nodes
     })
-    mapping_df.to_parquet(RAW_DATA_DIR + DATA_PARQUET)
+    mapping_df.to_parquet(save_to + DATA_PARQUET)
     del mapping_df
 
 
-def store_tracks(track_uris, uri2id):
+def store_tracks(track_uris, uri2id, save_to):
     track_ids = np.vectorize(uri2id.get)(track_uris)
     tracks_df = pd.DataFrame.from_dict({
         "track_id": track_ids,
         "track_uri": track_uris
     })
-    tracks_df.to_parquet(RAW_DATA_DIR + V_NODES_PARQUET)
+    tracks_df.to_parquet(save_to + V_NODES_PARQUET)
     del tracks_df
 
 
-def store_playlists(playlists):
+def store_playlists(playlists, save_to):
     playlists_df = pd.DataFrame.from_dict({
         "pid": playlists
     })
-    playlists_df.to_parquet(RAW_DATA_DIR + U_NODES_PARQUET)
+    playlists_df.to_parquet(save_to + U_NODES_PARQUET)
     del playlists_df
-
 
 def read_slice(path, playlists, track_uris, u_nodes, v_nodes):
     f = open(path)
@@ -91,34 +91,49 @@ def read_slice(path, playlists, track_uris, u_nodes, v_nodes):
     return track_uris, u_nodes, v_nodes
 
 
+def download_dataset(name, target_path):
+    # azureml-core of version 1.0.72 or higher is required
+    from azureml.core import Workspace, Dataset
+    from decouple import config
+
+    # TODO: keys
+    subscription_id = config('subscription_id', default='')
+    resource_group = 'spotify-mpd-challenge-v2'
+    workspace_name = 'spotify-mpd-challenge-v2'
+
+    workspace = Workspace(subscription_id, resource_group, workspace_name)
+    dataset = Dataset.get_by_name(workspace, name=name)
+    dataset.download(target_path=target_path, overwrite=True)
+
+
+def prepare_data(args):
+    print("|Preparing data...")
+
+    if args.platform == "azure":
+        print("|Downloading datasets...")
+        download_dataset('spotify-mpd', target_path=args.mpd_train_dir)
+        download_dataset('spotify-mpd-test', target_path=args.mpd_test_dir)
+    
+    if not args.test_only:
+        print("|Loading training dataset...")
+        train_full_paths = fullpaths_generator(args.mpd_train_dir + "slices/")
+        process_data(train_full_paths, save_to=DATA_DIR_TRAIN)
+    
+    print("|Loading test dataset...")
+    test_full_paths = fullpaths_generator(args.mpd_test_dir)
+    process_data(test_full_paths, save_to=DATA_DIR_TEST)
+
+
 if __name__ == '__main__':
-    print("|Preprocessing data...")
     args = argparse.ArgumentParser(description="args")
-    args.add_argument('--data_dir', type=str, default='./data/raw/slices', help="directory where the outputs are stored")
-    args.add_argument('--mpd_tr', type=str, default='./mpd_train', help="train mpd path")
-    args.add_argument('--mpd_te', type=str, default='./mpd_test', help="test mpd path")
+    
+    args.add_argument("--platform", type=str, choices=["azure", "local"], default="local", help="Platform the mpd files are stored")
+    args.add_argument('--mpd_train_dir', type=str, default=RAW_DATA_DIR_TRAIN, help="train mpd path")
+    args.add_argument('--mpd_test_dir', type=str, default=RAW_DATA_DIR_TEST, help="test mpd path")
+    args.add_argument("--test_only", action="store_true", help="Only prepare test data.")
 
     args = args.parse_args()
 
-    train_fullpaths = fullpaths_generator(args.data_dir)
+    print(args)
+    prepare_data(args)
 
-    # num_playlists = 1000000
-    # num_tracks = 66346428
-    # num_unique_tracks = 2262292
-
-    process_data(train_fullpaths)
-
-    """
-    Vi ha en P x S matrise A. 
-    Element på rad i er en spilleliste og element på kol j er en sang.
-    A_i_j = 1 hvis sang j er i spilleliste i. 
-    
-    1 - lagre alle spilleliste-id'er i .parquet med pid
-    2 - lagre alle unike tracks i .parquet: med pid og trackid
-    
-    3 - laste inn filene 
-    4 - lag A
-    
-    - har ingen features - kan legge til støtte senere men da blir filene gigantiske igjen (gjør det enkelt først)
-    - trenger train/val split
-    """

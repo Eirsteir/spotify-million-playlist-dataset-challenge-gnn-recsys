@@ -17,3 +17,6 @@ dependencies:
         - torchmetrics
         - pytorch-lightning
         - protobuf~=3.20
+        - azureml-core
+        - azureml-dataset-runtime
+        - python-decouple
