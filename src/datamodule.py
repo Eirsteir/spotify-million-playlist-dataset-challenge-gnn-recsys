@@ -6,7 +6,7 @@ from torch_geometric.data import Data, Dataset
 from torch_geometric.loader import DataLoader
 
 from prepare_data import prepare_data as prepare_spotify_data
-from preprocess import train_val_split, load_processed_data
+from preprocess import train_val_split, load_processed_data, load_challenge_data
 from dataset import IGMCDataset
 
 
@@ -130,12 +130,17 @@ class SpotifyDataModule(LightningDataModule):
                 self.test_dataset = self.val_dataset
 
         if stage == "test" or stage is None:
+            if self.use_features:
+                path = 'data/test/mpd-withfeatures.pickle'
+            else:
+                path = 'data/test/mpd-nofeatures.pickle'
+
             # TODO: load challenge data
             (
                 u_features, v_features, adj_test, 
                 test_labels, test_u_indices, test_v_indices,
                 class_values
-            ) = load_challenge_data()
+            ) = load_challenge_data(path)
         
             self.train_dataset = create_dataset(
                 adj=adj_test,
