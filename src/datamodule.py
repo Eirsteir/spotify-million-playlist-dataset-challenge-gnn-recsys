@@ -5,9 +5,10 @@ from pytorch_lightning import (LightningDataModule)
 from torch_geometric.data import Data, Dataset
 from torch_geometric.loader import DataLoader
 
-from prepare_data import prepare_data as prepare_spotify_data
-from preprocess import train_val_split, load_processed_data, load_challenge_data
-from dataset import IGMCDataset
+from src.prepare_data import prepare_data as prepare_spotify_data
+from src.preprocess import train_val_split, load_processed_data, load_challenge_data
+from src.dataset import IGMCDataset
+from src.contants import DATA_DIR_TRAIN, DATA_DIR_TEST
 
 
 def create_dataset(
@@ -47,7 +48,6 @@ class SpotifyDataModule(LightningDataModule):
         num_hops: int = 1, 
         max_nodes_per_hop: int = 10000,
         platform: str = "local",
-        use_test_data: bool = False,
         debug: bool = False,
         **kwargs
     ):        
@@ -61,14 +61,13 @@ class SpotifyDataModule(LightningDataModule):
         self.n_features = 0
         
         self.platform = platform 
-        self.use_test_data = use_test_data,
         self.debug = debug
 
     def prepare_data(self):
         # Download etc
         prepare_spotify_data(
             platform=self.platform, 
-            evaluate=self.use_test_data
+            evaluate=True
         )
         
 
@@ -77,11 +76,11 @@ class SpotifyDataModule(LightningDataModule):
 
             # Split, transform, etc
             if self.use_features:
-                datasplit_path = 'data/train/mpd-withfeatures.pickle'
+                filename = 'mpd-withfeatures.pickle'
             else:
-                datasplit_path = 'data/train/mpd-split.pickle'
+                filename = 'mpd-split.pickle'
 
-            data = load_processed_data(datasplit_path=datasplit_path)
+            data = load_processed_data(data_dir=DATA_DIR_TRAIN, filename=filename)
             
             (
                 u_features, v_features, adj_train, 
@@ -93,7 +92,7 @@ class SpotifyDataModule(LightningDataModule):
             if self.use_features:
                 u_features, v_features = u_features.toarray(), v_features.toarray()
                 self.n_features = u_features.shape[1] + v_features.shape[1]
-                print(f'Number of playlist features {u_features.shape[1]}, '
+                print(f'|Train data: Number of playlist features {u_features.shape[1]}, '
                     f'track features {v_features.shape[1]}, '
                     f'total features {n_features}')
             else:
@@ -125,24 +124,22 @@ class SpotifyDataModule(LightningDataModule):
                 v_features=v_features,
                 class_values=class_values
             )
-
-            if self.use_test_data:
-                self.test_dataset = self.val_dataset
-
+            print(f'|Using {len(self.train_dataset)} train graphs and {len(self.val_dataset)} val graphs')
+        
+        # TODO: challenge dataloader 
         if stage == "test" or stage is None:
             if self.use_features:
-                path = 'data/test/mpd-withfeatures.pickle'
+                filename = 'mpd-withfeatures.pickle'
             else:
-                path = 'data/test/mpd-nofeatures.pickle'
+                filename = 'mpd-nofeatures.pickle'
 
-            # TODO: load challenge data
             (
                 u_features, v_features, adj_test, 
                 test_labels, test_u_indices, test_v_indices,
                 class_values
-            ) = load_challenge_data(path)
+            ) = load_challenge_data(data_dir=DATA_DIR_TEST, filename=filename)
         
-            self.train_dataset = create_dataset(
+            self.test_dataset = create_dataset(
                 adj=adj_test,
                 labels=test_labels,
                 u_indices=test_u_indices,
@@ -154,8 +151,7 @@ class SpotifyDataModule(LightningDataModule):
                 v_features=v_features,
                 class_values=class_values
             )
-
-        print(f'|Using #train graphs: {len(self.train_dataset)}, #test graphs: {len(self.test_dataset)}')
+            print(f"Using {len(self.test_dataset)} test graphs")
         
 
     def train_dataloader(self):

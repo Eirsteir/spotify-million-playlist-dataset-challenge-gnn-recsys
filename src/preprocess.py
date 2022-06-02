@@ -8,11 +8,11 @@ import pickle as pkl
 import numpy as np
 import scipy.sparse as sp
 
-from data_utils import load_data
-from contants import DATA_DIR_TRAIN, DATA_DIR_TEST
+from src.data_utils import load_data
+from src.contants import DATA_DIR_TRAIN, DATA_DIR_TEST
 
-def load_challenge_data(path):
-    num_users, num_items, u_nodes, v_nodes, ratings, u_features, v_features = load_processed_data(path)
+def load_challenge_data(data_dir, filename):
+    num_users, num_items, u_nodes, v_nodes, ratings, u_features, v_features = load_processed_data(data_dir, filename)
 
     u_idx, v_idx = np.vstack([u_nodes, v_nodes])
 
@@ -27,25 +27,29 @@ def load_challenge_data(path):
     return u_features, v_features, R, labels, u_idx, v_idx, class_values
 
 
+# TODO: class SpotifyData
 def load_processed_data(
-        path=DATA_DIR_TRAIN,
-        datasplit_path=None,
-        seed=1234
+    data_dir,
+    filename,
+    seed=1234
 ):
-    if os.path.isfile(datasplit_path):
-        print('Reading processed dataset from file...')
-        with open(datasplit_path, 'rb') as f:
+    full_path = data_dir + filename
+
+    if os.path.isfile(full_path):
+        print(f'|Reading processed dataset from {full_path}...')
+        with open(full_path, 'rb') as f:
             num_users, num_items, u_nodes, v_nodes, ratings, u_features, v_features = pkl.load(f)
     else:
-        num_users, num_items, u_nodes, v_nodes, ratings, u_features, v_features = load_data(path=path, seed=seed)
+        num_users, num_items, u_nodes, v_nodes, ratings, u_features, v_features = load_data(path=data_dir, seed=seed)
 
-        with open(datasplit_path, 'wb') as f:
+        with open(full_path, 'wb') as f:
             pkl.dump([num_users, num_items, u_nodes, v_nodes, ratings, u_features, v_features], f)
 
-    print('Number of users = %d' % num_users)
-    print('Number of items = %d' % num_items)
-    print('Number of links = %d' % ratings.shape[0])
-    print('Fraction of positive links = %.10f' % (float(ratings.shape[0]) / (num_users * num_items),))
+    print("|Dataset statistics: ")
+    print('\tNumber of users = %d' % num_users)
+    print('\tNumber of items = %d' % num_items)
+    print('\tNumber of links = %d' % ratings.shape[0])
+    print('\tFraction of positive links = %.10f' % (float(ratings.shape[0]) / (num_users * num_items),))
         
     return num_users, num_items, u_nodes, v_nodes, ratings, u_features, v_features
 
@@ -60,7 +64,7 @@ def train_val_split(
     adjacency matrix.
     """
  
-    print("Using random dataset split ...")
+    print("|Using random train/val split ...")
     num_val = int(np.ceil(ratings.shape[0] * 0.1))
     num_train = ratings.shape[0] - num_val
 

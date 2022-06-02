@@ -2,7 +2,8 @@ import random
 
 import numpy as np
 import pandas as pd
-from contants import DATA_PARQUET, U_NODES_PARQUET, V_NODES_PARQUET, DATA_DIR_TRAIN, DATA_DIR_TEST
+
+from src.contants import DATA_PARQUET, U_NODES_PARQUET, V_NODES_PARQUET, DATA_DIR_TRAIN, DATA_DIR_TEST
 
 
 def load_data(path=DATA_DIR_TRAIN, seed=1234):

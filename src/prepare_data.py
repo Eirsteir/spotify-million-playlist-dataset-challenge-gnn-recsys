@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from contants import RAW_DATA_DIR, DATA_DIR_TRAIN, DATA_DIR_TEST, DATA_PARQUET, V_NODES_PARQUET, U_NODES_PARQUET, RAW_DATA_DIR_TEST, RAW_DATA_DIR_TRAIN
+from src.contants import RAW_DATA_DIR, DATA_DIR_TRAIN, DATA_DIR_TEST, DATA_PARQUET, V_NODES_PARQUET, U_NODES_PARQUET, RAW_DATA_DIR_TEST, RAW_DATA_DIR_TRAIN
 
 
 def fullpaths_generator(path):

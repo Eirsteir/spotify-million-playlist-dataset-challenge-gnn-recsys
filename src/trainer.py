@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from pytorch_lightning import LightningModule
 from torchmetrics import MeanSquaredError, RetrievalRPrecision, RetrievalNormalizedDCG
 
-from models import IGMC
+from src.models import IGMC
 
 
 def num_graphs(data):

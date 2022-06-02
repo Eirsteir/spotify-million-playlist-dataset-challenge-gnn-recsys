@@ -5,7 +5,7 @@ from torch_geometric.data import Dataset, Data
 from torch_geometric.utils import to_scipy_sparse_matrix
 import random
 
-from contants import R, v
+from src.contants import R, v
 
 
 class SparseRowIndexer:
