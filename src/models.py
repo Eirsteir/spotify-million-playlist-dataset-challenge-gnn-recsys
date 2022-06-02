@@ -10,7 +10,8 @@ class IGMC(torch.nn.Module):
     # Use RGCN convolution + center-nodes readout.
     def __init__(
             self, 
-            dataset, 
+            num_features,
+            num_relations=1, 
             latent_dim=[32, 32, 32, 32], 
             num_layers=4, 
             num_bases=2, 
@@ -25,10 +26,10 @@ class IGMC(torch.nn.Module):
         self.force_undirected = force_undirected
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(RGCNConv(dataset.num_features, latent_dim[0], dataset.num_relations, num_bases))
+        self.convs.append(RGCNConv(num_features, latent_dim[0], num_relations, num_bases))
         
         for i in range(0, num_layers - 1):
-            self.convs.append(RGCNConv(latent_dim[i], latent_dim[i+1], dataset.num_relations, num_bases))
+            self.convs.append(RGCNConv(latent_dim[i], latent_dim[i+1], num_relations, num_bases))
 
         self.lin1 = Linear(2*sum(latent_dim), 128)
         self.use_features = use_features

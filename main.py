@@ -48,7 +48,8 @@ if __name__ == '__main__':
                         help='decay lr by factor A every B steps')
     parser.add_argument('--lr-decay-factor', type=float, default=0.1,
                         help='decay lr by factor A every B steps')
-    parser.add_argument('--ARR', type=float, default=0.001,
+    # TODO: Don't need ARR for singe-relation
+    parser.add_argument('--ARR', type=float, default=0.0,
                         help="Adjacent rating regularization lambda value")
     parser.add_argument('--epochs', type=int, default=50)
 

@@ -14,19 +14,41 @@ def num_graphs(data):
 
 
 class LightningIGMC(LightningModule):
-    def __init__(self,
-                 lr,
-                 lr_decay_factor,
-                 lr_decay_step_size,
-                 ARR=0,
-                 **model_params):
+    def __init__(
+            self,
+            lr,
+            lr_decay_factor,
+            lr_decay_step_size,
+            ARR,
+            num_features,
+            num_relations=1, 
+            latent_dim=[32, 32, 32, 32], 
+            num_layers=4, 
+            num_bases=2, 
+            adj_dropout=0.2,
+            force_undirected=False, 
+            use_features=False, 
+            n_side_features=0
+        ):
         super().__init__()
+        self.save_hyperparameters()
+
         self.lr = lr
         self.lr_decay_factor = lr_decay_factor
         self.lr_decay_step_size = lr_decay_step_size
         self.ARR = ARR
 
-        self.model = IGMC(**model_params)
+        self.model = IGMC(
+            num_features,
+            num_relations, 
+            latent_dim, 
+            num_layers, 
+            num_bases, 
+            adj_dropout,
+            force_undirected, 
+            use_features, 
+            n_side_features
+        )
 
         self.train_rmse = MeanSquaredError(squared=False)
         
@@ -88,5 +110,5 @@ class LightningIGMC(LightningModule):
                                                     gamma=self.lr_decay_factor)
         return [optimizer], [scheduler]
 
-    def parameters(self):
-        return self.model.parameters()
+    # def parameters(self):
+    #     return self.model.parameters()

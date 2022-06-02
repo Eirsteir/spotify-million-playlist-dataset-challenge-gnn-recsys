@@ -31,21 +31,23 @@ def run_pipeline(args):
     )
     datamodule.prepare_data()
     datamodule.setup(stage="fit")
-
-    model = LightningIGMC(
-        lr=args.lr,
-        lr_decay_step_size=args.lr_decay_step_size,
-        lr_decay_factor=args.lr_decay_factor,
-        ARR=args.ARR,
-        # Model arguments
-        dataset=datamodule.train_dataset,
+    model_params = dict(
+        num_features=datamodule.train_dataset.num_features,
+        num_relations=datamodule.train_dataset.num_relations, 
         latent_dim=[32, 32, 32, 32],
         num_layers=args.num_layers,
         num_bases=4,
         adj_dropout=args.adj_dropout,
         force_undirected=args.force_undirected,
         use_features=args.use_features,
-        n_side_features=datamodule.n_features,
+        n_side_features=datamodule.n_features
+    )
+    model = LightningIGMC(
+        lr=args.lr,
+        lr_decay_step_size=args.lr_decay_step_size,
+        lr_decay_factor=args.lr_decay_factor,
+        ARR=args.ARR,
+        **model_params
     )
 
     print(f'|#Params {sum([p.numel() for p in model.parameters()])}')
@@ -74,25 +76,25 @@ def run_pipeline(args):
 
         print(f'|Evaluating model saved in {logdir}...')
 
+        datamodule.setup(stage="test")
+
         trainer = Trainer(
             accelerator="auto",
             devices=args.devices, 
             resume_from_checkpoint=ckpt
         )
+        # checkpoint_callback.best_model_path
         model = LightningIGMC.load_from_checkpoint(
             ckpt, 
-            # hparams_file=f'{logdir}/hparams.yaml',
-            lr=args.lr,
-            lr_decay_step_size=args.lr_decay_step_size,
-            lr_decay_factor=args.lr_decay_factor
+            hparams_file=f'{logdir}/hparams.yaml',
+            # lr=args.lr,
+            # lr_decay_step_size=args.lr_decay_step_size,
+            # lr_decay_factor=args.lr_decay_factor
         )
 
-
-
-        datamodule.setup(stage="test")
         trainer.test(model=model, datamodule=datamodule)
         
-        loader = datamodule.test_dataloader()
+        loader = datamodule.predict_dataloader() # challenge data
 
         model.eval()
         device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'

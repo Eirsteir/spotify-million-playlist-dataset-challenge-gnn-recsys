@@ -72,8 +72,7 @@ class SpotifyDataModule(LightningDataModule):
         
 
     def setup(self, stage: Optional[str] = None):
-        if stage == "fit" or stage is None:
-
+        if stage and stage == "fit":
             # Split, transform, etc
             if self.use_features:
                 filename = 'mpd-withfeatures.pickle'
@@ -124,10 +123,11 @@ class SpotifyDataModule(LightningDataModule):
                 v_features=v_features,
                 class_values=class_values
             )
+            
             print(f'|Using {len(self.train_dataset)} train graphs and {len(self.val_dataset)} val graphs')
         
         # TODO: challenge dataloader 
-        if stage == "test" or stage is None:
+        if stage and stage == "test":
             if self.use_features:
                 filename = 'mpd-withfeatures.pickle'
             else:
@@ -151,6 +151,7 @@ class SpotifyDataModule(LightningDataModule):
                 v_features=v_features,
                 class_values=class_values
             )
+            
             print(f"Using {len(self.test_dataset)} test graphs")
         
 
